@@ -62,6 +62,12 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Response = $"Error: {ex.Message}";
+
+            if (ShouldGenerateImage(Prompt))
+            {
+                GeneratedImage = null;
+                ImageStatus = $"Image generation failed. {ex.Message}";
+            }
         }
         finally
         {
