@@ -22,8 +22,7 @@ public sealed class WhisperSpeechToTextService : ISpeechToTextService
         var wavPath = Path.Combine(Path.GetTempPath(), $"localchat-{Guid.NewGuid():N}.wav");
         await RecordAudioAsync(wavPath, TimeSpan.FromSeconds(6), cancellationToken);
 
-        await using var modelStream = File.OpenRead(_modelPath);
-        using var whisperFactory = WhisperFactory.FromStream(modelStream);
+        using var whisperFactory = WhisperFactory.FromPath(_modelPath);
         using var processor = whisperFactory.CreateBuilder().WithLanguage("en").Build();
 
         await using var audioStream = File.OpenRead(wavPath);
