@@ -88,3 +88,27 @@ These prompts call Stable Diffusion API; all others call Mistral.
 - Do one-time downloads while online (Ollama model, Whisper model, SD model).
 - After that, disconnect internet and run all services locally.
 - No paid APIs are used.
+
+## Troubleshooting image generation (CMD)
+
+If image prompts stay on "Generating image" or fail with connection errors, check the local SD API from **Command Prompt**:
+
+```cmd
+netstat -ano | findstr :7860
+curl http://127.0.0.1:7860/sdapi/v1/sd-models
+```
+
+- If `curl` fails with connection refused, launch AUTOMATIC1111 with API enabled:
+
+```cmd
+webui-user.bat --api
+```
+
+- After it starts, re-run:
+
+```cmd
+curl http://127.0.0.1:7860/sdapi/v1/sd-models
+```
+
+A JSON response means the image model endpoint is available.
+
