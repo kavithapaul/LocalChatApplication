@@ -12,6 +12,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IChatService _chatService;
     private readonly IImageGenerationService _imageService;
     private readonly ISpeechToTextService _speechToTextService;
+    private readonly IRagIngestionService _ragIngestionService;
 
     private CancellationTokenSource? _activeRequestCts;
 
@@ -30,11 +31,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool isBusy;
 
-    public MainViewModel(IChatService chatService, IImageGenerationService imageService, ISpeechToTextService speechToTextService)
+    public MainViewModel(
+        IChatService chatService,
+        IImageGenerationService imageService,
+        ISpeechToTextService speechToTextService,
+        IRagIngestionService ragIngestionService)
     {
         _chatService = chatService;
         _imageService = imageService;
         _speechToTextService = speechToTextService;
+        _ragIngestionService = ragIngestionService;
     }
 
     [RelayCommand]
@@ -77,7 +83,7 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
-            _activeRequestCts.Dispose();
+            _activeRequestCts?.Dispose();
             _activeRequestCts = null;
             IsBusy = false;
         }
@@ -110,6 +116,31 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Response = $"Microphone/STT error: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task UploadPdfForRagAsync(string pdfPath)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        Response = "Starting RAG ingestion: chunking PDF, generating embeddings, and storing in Chroma...";
+
+        try
+        {
+            var result = await _ragIngestionService.IngestPdfAsync(pdfPath, CancellationToken.None);
+            Response = $"RAG ingestion complete. Added {result.ChunksStored} chunks from '{result.FileName}' to Chroma collection '{result.CollectionName}'.";
+        }
+        catch (Exception ex)
+        {
+            Response = $"RAG ingestion failed: {ex.Message}";
         }
         finally
         {
