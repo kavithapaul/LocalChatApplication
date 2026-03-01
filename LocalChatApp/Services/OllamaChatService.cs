@@ -16,7 +16,14 @@ public sealed class OllamaChatService : IChatService
 
     public async Task<string> AskAsync(string prompt, CancellationToken cancellationToken = default)
     {
-        var payload = new OllamaGenerateRequest(_model, prompt, Stream: false);
+        var payload = new
+        {
+            model = _model,
+            prompt = prompt,
+            stream = false,
+            keep_alive = "10m",
+            max_tokens = 512                    // limit response length            
+        };
         using var response = await _httpClient.PostAsJsonAsync("/api/generate", payload, cancellationToken);
         response.EnsureSuccessStatusCode();
 
