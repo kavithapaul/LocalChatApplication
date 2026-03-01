@@ -73,6 +73,13 @@ dotnet build LocalChatApp/LocalChatApp.csproj
 dotnet run --project LocalChatApp/LocalChatApp.csproj
 ```
 
+
+## Chat responsiveness improvements
+
+- The chat client now uses Ollama streaming (`stream: true`) so text appears token-by-token instead of waiting for a full completion.
+- Generation parameters were tuned for lower latency (`num_predict=256`) while keeping quality stable.
+- HTTP calls use response-header streaming mode to start reading output as soon as the first token arrives.
+
 ## Routing behavior
 
 In `MainViewModel`, prompt routing is keyword-based:

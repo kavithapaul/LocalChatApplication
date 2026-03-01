@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,6 +12,8 @@ public partial class MainViewModel : ObservableObject
     private readonly IChatService _chatService;
     private readonly IImageGenerationService _imageService;
     private readonly ISpeechToTextService _speechToTextService;
+
+    private CancellationTokenSource? _activeRequestCts;
 
     [ObservableProperty]
     private string prompt = string.Empty;
@@ -42,6 +46,9 @@ public partial class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
+        _activeRequestCts?.Cancel();
+        _activeRequestCts?.Dispose();
+        _activeRequestCts = new CancellationTokenSource();
 
         try
         {
@@ -55,8 +62,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                Response = "Thinking with local Mistral model...";
-                Response = await _chatService.AskAsync(Prompt);
+                await StreamResponseAsync(Prompt, _activeRequestCts.Token);
             }
         }
         catch (Exception ex)
@@ -71,6 +77,8 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
+            _activeRequestCts.Dispose();
+            _activeRequestCts = null;
             IsBusy = false;
         }
     }
@@ -107,6 +115,30 @@ public partial class MainViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task StreamResponseAsync(string userPrompt, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var buffer = new StringBuilder(capacity: 512);
+
+        Response = "Thinking with local Mistral model...";
+
+        await foreach (var chunk in _chatService.StreamAsync(userPrompt, cancellationToken))
+        {
+            buffer.Append(chunk);
+            Response = buffer.ToString();
+        }
+
+        if (buffer.Length == 0)
+        {
+            Response = "No response from local model. Verify Ollama and the Mistral model are running.";
+            return;
+        }
+
+        stopwatch.Stop();
+        var tokensPerSecond = buffer.Length / Math.Max(stopwatch.Elapsed.TotalSeconds, 0.001);
+        ImageStatus = $"Model response streamed in {stopwatch.Elapsed.TotalSeconds:F1}s (~{tokensPerSecond:F0} chars/sec).";
     }
 
     private static bool ShouldGenerateImage(string prompt)
