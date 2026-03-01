@@ -189,7 +189,8 @@ public sealed class RagIngestionService : IRagIngestionService
     private InvalidOperationException CreateChromaConnectionException(HttpRequestException ex)
     {
         var message = $"Unable to connect to Chroma at '{_chromaBaseUrl}'. " +
-                      "Start Chroma (for example: `docker run -p 8000:8000 chromadb/chroma`) " +
+                      "`chromadb.Client()` in Python only starts an embedded/in-process client and does not expose an HTTP server. " +
+                      "Start the Chroma server (for example: `docker run -p 8000:8000 chromadb/chroma`) " +
                       "or set the `LOCALCHAT_CHROMA_URL` environment variable to the correct endpoint.";
 
         return new InvalidOperationException(message, ex);
