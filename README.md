@@ -119,3 +119,30 @@ curl http://127.0.0.1:7860/sdapi/v1/sd-models
 
 A JSON response means the image model endpoint is available.
 
+## Troubleshooting RAG ingestion (Chroma)
+
+If PDF ingestion fails with a message like `No connection could be made ... (localhost:8000)`, the Chroma server is not reachable.
+
+Check the endpoint from a terminal:
+
+```bash
+curl http://localhost:8000/api/v1/heartbeat
+```
+
+If connection is refused, start Chroma locally (example with Docker):
+
+```bash
+docker run --rm -p 8000:8000 chromadb/chroma
+```
+
+If Chroma is running on a different host/port, set:
+
+```bash
+# Windows PowerShell
+$env:LOCALCHAT_CHROMA_URL = "http://127.0.0.1:8010"
+
+# Linux/macOS
+export LOCALCHAT_CHROMA_URL="http://127.0.0.1:8010"
+```
+
+Then launch the app from the same terminal session so it picks up the variable.
