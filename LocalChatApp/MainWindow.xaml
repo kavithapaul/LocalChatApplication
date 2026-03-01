@@ -20,11 +20,33 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Offline Local Chat + Image Assistant"
-                   FontSize="24"
-                   FontWeight="SemiBold"
-                   Foreground="#FFE2E8F0"
-                   Margin="0,0,0,14" />
+        <Grid>
+            <TextBlock Text="Offline Local Chat + Image Assistant"
+                       FontSize="24"
+                       FontWeight="SemiBold"
+                       Foreground="#FFE2E8F0"
+                       Margin="0,0,0,14" />
+
+            <Button HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Width="42"
+                    Height="42"
+                    FontSize="20"
+                    Background="#FF334155"
+                    Foreground="#FFF8FAFC"
+                    BorderBrush="#FF475569"
+                    Cursor="Hand"
+                    ToolTip="Settings"
+                    Click="SettingsButton_OnClick"
+                    Content="⚙">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Upload PDF to Chroma"
+                                  Click="UploadPdfMenuItem_OnClick" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+        </Grid>
 
         <Border Grid.Row="1" Background="#FF1E293B" CornerRadius="14" BorderBrush="#FF334155" BorderThickness="1" Padding="14">
             <Grid>
