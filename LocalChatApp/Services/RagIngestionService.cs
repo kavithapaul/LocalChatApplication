@@ -9,10 +9,12 @@ public sealed class RagIngestionService : IRagIngestionService
 {
     private readonly HttpClient _httpClient;
     private readonly string _collectionName;
+    private readonly string _chromaBaseUrl;
 
     public RagIngestionService(string chromaBaseUrl, string collectionName = "localchat_rag")
     {
-        _httpClient = new HttpClient { BaseAddress = new Uri(chromaBaseUrl.TrimEnd('/') + "/") };
+        _chromaBaseUrl = chromaBaseUrl.TrimEnd('/');
+        _httpClient = new HttpClient { BaseAddress = new Uri(_chromaBaseUrl + "/") };
         _collectionName = collectionName;
     }
 
@@ -61,7 +63,16 @@ public sealed class RagIngestionService : IRagIngestionService
             metadatas
         };
 
-        var addResponse = await _httpClient.PostAsJsonAsync($"api/v1/collections/{collectionId}/add", addPayload, cancellationToken);
+        HttpResponseMessage addResponse;
+        try
+        {
+            addResponse = await _httpClient.PostAsJsonAsync($"api/v1/collections/{collectionId}/add", addPayload, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw CreateChromaConnectionException(ex);
+        }
+
         addResponse.EnsureSuccessStatusCode();
 
         return new RagIngestionResult(Path.GetFileName(pdfPath), _collectionName, chunks.Count);
@@ -69,7 +80,15 @@ public sealed class RagIngestionService : IRagIngestionService
 
     private async Task<string> EnsureCollectionAsync(CancellationToken cancellationToken)
     {
-        var getResponse = await _httpClient.GetAsync($"api/v1/collections/{_collectionName}", cancellationToken);
+        HttpResponseMessage getResponse;
+        try
+        {
+            getResponse = await _httpClient.GetAsync($"api/v1/collections/{_collectionName}", cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw CreateChromaConnectionException(ex);
+        }
 
         if (getResponse.IsSuccessStatusCode)
         {
@@ -86,7 +105,16 @@ public sealed class RagIngestionService : IRagIngestionService
             }
         };
 
-        var createResponse = await _httpClient.PostAsJsonAsync("api/v1/collections", createPayload, cancellationToken);
+        HttpResponseMessage createResponse;
+        try
+        {
+            createResponse = await _httpClient.PostAsJsonAsync("api/v1/collections", createPayload, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw CreateChromaConnectionException(ex);
+        }
+
         createResponse.EnsureSuccessStatusCode();
 
         var created = await createResponse.Content.ReadFromJsonAsync<ChromaCollectionResponse>(cancellationToken: cancellationToken);
@@ -156,6 +184,15 @@ public sealed class RagIngestionService : IRagIngestionService
     private sealed class ChromaCollectionResponse
     {
         public string Id { get; set; } = string.Empty;
+    }
+
+    private InvalidOperationException CreateChromaConnectionException(HttpRequestException ex)
+    {
+        var message = $"Unable to connect to Chroma at '{_chromaBaseUrl}'. " +
+                      "Start Chroma (for example: `docker run -p 8000:8000 chromadb/chroma`) " +
+                      "or set the `LOCALCHAT_CHROMA_URL` environment variable to the correct endpoint.";
+
+        return new InvalidOperationException(message, ex);
     }
 
     private sealed class OllamaEmbeddingResponse
