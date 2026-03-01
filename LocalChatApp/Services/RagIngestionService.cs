@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
 using UglyToad.PdfPig;
 
 namespace LocalChatApp.Services;
@@ -10,11 +9,15 @@ public sealed class RagIngestionService : IRagIngestionService
     private readonly HttpClient _httpClient;
     private readonly string _collectionName;
     private readonly string _chromaBaseUrl;
+    private readonly string _ollamaBaseUrl;
+    private readonly HttpClient _ollamaHttpClient;
 
-    public RagIngestionService(string chromaBaseUrl, string collectionName = "localchat_rag")
+    public RagIngestionService(string chromaBaseUrl, string collectionName = "localchat_rag", string ollamaBaseUrl = "http://127.0.0.1:11434")
     {
         _chromaBaseUrl = chromaBaseUrl.TrimEnd('/');
+        _ollamaBaseUrl = ollamaBaseUrl.TrimEnd('/');
         _httpClient = new HttpClient { BaseAddress = new Uri(_chromaBaseUrl + "/") };
+        _ollamaHttpClient = new HttpClient { BaseAddress = new Uri(_ollamaBaseUrl + "/") };
         _collectionName = collectionName;
     }
 
@@ -24,6 +27,8 @@ public sealed class RagIngestionService : IRagIngestionService
         {
             throw new FileNotFoundException("PDF file not found.", pdfPath);
         }
+
+        await EnsureChromaReachableAsync(cancellationToken);
 
         var fullText = ExtractTextFromPdf(pdfPath);
         var chunks = ChunkText(fullText, 900, 150).ToList();
@@ -96,6 +101,12 @@ public sealed class RagIngestionService : IRagIngestionService
             return existing?.Id ?? throw new InvalidOperationException("Chroma returned collection without id.");
         }
 
+        if (getResponse.StatusCode != System.Net.HttpStatusCode.NotFound)
+        {
+            var getError = await ReadErrorAsync(getResponse, cancellationToken);
+            throw new InvalidOperationException($"Failed to query Chroma collection '{_collectionName}': {getError}");
+        }
+
         var createPayload = new
         {
             name = _collectionName,
@@ -115,7 +126,11 @@ public sealed class RagIngestionService : IRagIngestionService
             throw CreateChromaConnectionException(ex);
         }
 
-        createResponse.EnsureSuccessStatusCode();
+        if (!createResponse.IsSuccessStatusCode)
+        {
+            var createError = await ReadErrorAsync(createResponse, cancellationToken);
+            throw new InvalidOperationException($"Failed to create Chroma collection '{_collectionName}': {createError}");
+        }
 
         var created = await createResponse.Content.ReadFromJsonAsync<ChromaCollectionResponse>(cancellationToken: cancellationToken);
         return created?.Id ?? throw new InvalidOperationException("Failed to parse Chroma collection id.");
@@ -142,12 +157,21 @@ public sealed class RagIngestionService : IRagIngestionService
             prompt = text
         };
 
-        using var response = await _httpClient.PostAsJsonAsync("http://localhost:11434/api/embeddings", request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        using var response = await _ollamaHttpClient.PostAsJsonAsync("api/embeddings", request, cancellationToken);
 
-        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var embeddingResponse = await JsonSerializer.DeserializeAsync<OllamaEmbeddingResponse>(responseStream, cancellationToken: cancellationToken)
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await ReadErrorAsync(response, cancellationToken);
+            throw new InvalidOperationException($"Failed to generate embedding via Ollama at '{_ollamaBaseUrl}': {error}");
+        }
+
+        var embeddingResponse = await response.Content.ReadFromJsonAsync<OllamaEmbeddingResponse>(cancellationToken: cancellationToken)
                                 ?? throw new InvalidOperationException("Invalid embedding response from Ollama.");
+
+        if (embeddingResponse.Embedding.Count == 0)
+        {
+            throw new InvalidOperationException("Ollama returned an empty embedding.");
+        }
 
         return embeddingResponse.Embedding;
     }
@@ -184,6 +208,32 @@ public sealed class RagIngestionService : IRagIngestionService
     private sealed class ChromaCollectionResponse
     {
         public string Id { get; set; } = string.Empty;
+    }
+
+    private async Task EnsureChromaReachableAsync(CancellationToken cancellationToken)
+    {
+        HttpResponseMessage heartbeat;
+
+        try
+        {
+            heartbeat = await _httpClient.GetAsync("api/v1/heartbeat", cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw CreateChromaConnectionException(ex);
+        }
+
+        if (!heartbeat.IsSuccessStatusCode)
+        {
+            var error = await ReadErrorAsync(heartbeat, cancellationToken);
+            throw new InvalidOperationException($"Chroma endpoint '{_chromaBaseUrl}' responded to heartbeat with {(int)heartbeat.StatusCode} ({heartbeat.ReasonPhrase}). Details: {error}");
+        }
+    }
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(payload) ? "No response body." : payload;
     }
 
     private InvalidOperationException CreateChromaConnectionException(HttpRequestException ex)

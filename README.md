@@ -149,3 +149,5 @@ export LOCALCHAT_CHROMA_URL="http://127.0.0.1:8010"
 ```
 
 Then launch the app from the same terminal session so it picks up the variable.
+
+If Ollama embeddings are exposed on a non-default host/port, set `LOCALCHAT_OLLAMA_URL` as well (defaults to `http://127.0.0.1:11434`).
