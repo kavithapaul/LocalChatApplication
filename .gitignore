@@ -5,3 +5,5 @@
 /.vs
 /LocalChatApp/obj
 /LocalChatApp/bin/Debug/net8.0-windows
+/LocalChatApp/bin/Release/net8.0-windows/win-x64
+/publish/win-x64

@@ -6,11 +6,22 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Ensure you target a runtime for native libs when publishing/building -->
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Whisper.net" Version="1.7.0" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ensure models and assets are copied to publish output -->
+    <Content Include="models\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 </Project>
