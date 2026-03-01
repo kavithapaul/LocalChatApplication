@@ -16,7 +16,8 @@ public partial class MainWindow : Window
         var imageService = new StableDiffusionImageService("http://127.0.0.1:7860", Path.Combine(AppContext.BaseDirectory, "generated-images"));
         var speechService = new WhisperSpeechToTextService(Path.Combine(AppContext.BaseDirectory, "models", "ggml-base.bin"));
         var chromaUrl = Environment.GetEnvironmentVariable("LOCALCHAT_CHROMA_URL") ?? "http://localhost:8000";
-        var ragIngestionService = new RagIngestionService(chromaUrl, "localchat_rag");
+        var ollamaUrl = Environment.GetEnvironmentVariable("LOCALCHAT_OLLAMA_URL") ?? "http://127.0.0.1:11434";
+        var ragIngestionService = new RagIngestionService(chromaUrl, "localchat_rag", ollamaUrl);
 
         DataContext = new MainViewModel(llmService, imageService, speechService, ragIngestionService);
     }
