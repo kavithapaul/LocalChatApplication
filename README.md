@@ -135,6 +135,9 @@ If connection is refused, start Chroma locally (example with Docker):
 docker run --rm -p 8000:8000 chromadb/chroma
 ```
 
+> Note: a Python snippet like `client = chromadb.Client()` creates an in-process/embedded client only.
+> It does **not** start the HTTP server that LocalChatApp calls on `http://localhost:8000`.
+
 If Chroma is running on a different host/port, set:
 
 ```bash
